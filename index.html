@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClimateWatch Indonesia | Dashboard Pemantauan Iklim</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <style>
+        :root {
+            --primary: #0f766e; --primary-light: #ccfbf1;
+            --secondary: #0ea5e9; --secondary-light: #e0f2fe;
+            --accent: #f59e0b; --accent-light: #fef3c7;
+            --danger: #ef4444; --danger-light: #fee2e2;
+            --success: #10b981; --success-light: #d1fae5;
+            --purple: #8b5cf6; --purple-light: #ede9fe;
+            --bg: #f8fafc; --surface: #ffffff;
+            --text-primary: #0f172a; --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, sans-serif; background-color: var(--bg); color: var(--text-primary); line-height: 1.6; }
+
+        /* Header & Layout */
+        .header { background: rgba(255, 255, 255, 0.95); border-bottom: 1px solid var(--border); padding: 1rem 2rem; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(8px); }
+        .header-content { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+        .brand { display: flex; align-items: center; gap: 0.75rem; }
+        .brand-icon { width: 40px; height: 40px; background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.25rem; }
+        .brand-text h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.025em; }
+        .brand-text p { font-size: 0.875rem; color: var(--text-secondary); }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+
+        /* Buttons */
+        .btn { padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 0.5rem; }
+        .btn-outline { background: transparent; border-color: var(--border); color: var(--text-primary); }
+        .btn-outline:hover { background: var(--bg); border-color: var(--text-secondary); }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #0d5f58; transform: translateY(-1px); }
+        .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.75rem; border-radius: 6px; }
+
+        /* Warning Box */
+        .warning-box { background: #fffbeb; border: 1px solid #fcd34d; border-left: 4px solid var(--accent); padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 2rem; display: flex; gap: 1rem; align-items: flex-start; }
+        .warning-box .icon { font-size: 1.25rem; flex-shrink: 0; }
+        .warning-box h3 { font-size: 0.875rem; font-weight: 600; color: #92400e; margin-bottom: 0.25rem; }
+        .warning-box p { font-size: 0.875rem; color: #a16207; line-height: 1.5; }
+
+        /* Metrics Grid */
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .metric-card { background: var(--surface); padding: 1.5rem; border-radius: 16px; border: 1px solid var(--border); box-shadow: var(--shadow); transition: all 0.3s ease; }
+        .metric-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); border-color: var(--primary-light); }
+        .metric-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+        .metric-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; }
+        .icon-teal { background: var(--primary-light); color: var(--primary); }
+        .metric-value { font-size: 1.875rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.025em; margin-bottom: 0.25rem; }
+        .metric-label { font-size: 0.875rem; color: var(--text-secondary); font-weight: 500; }
+
+        /* Tabs */
+        .tabs-container { background: var(--surface); border-radius: 16px; border: 1px solid var(--border); box-shadow: var(--shadow); overflow: hidden; }
+        .tabs-header { display: flex; border-bottom: 1px solid var(--border); padding: 0 1.5rem; overflow-x: auto; }
+        .tab-btn { padding: 1rem 1.25rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap; display: flex; align-items: center; gap: 0.5rem; }
+        .tab-btn:hover { color: var(--primary); background: var(--bg); }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+        .tab-content { display: none; padding: 2rem; animation: fadeIn 0.3s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Table */
+        .table-container { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+        th { background: var(--bg); color: var(--text-secondary); font-weight: 600; text-align: left; padding: 1rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+        td { padding: 1rem; border-bottom: 1px solid var(--border); color: var(--text-primary); }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f8fafc; }
+        .badge { display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+        .badge-mitigasi { background: var(--secondary-light); color: #0369a1; }
+        .badge-adaptasi { background: var(--success-light); color: #047857; }
+        .badge-basis { background: var(--accent-light); color: #92400e; }
+        .progress-bar { width: 100%; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 0.5rem; }
+        .progress-fill { height: 100%; background: var(--primary); border-radius: 3px; transition: width 0.5s ease; }
+
+        /* Document Links */
+        .doc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+        .doc-card { display: flex; align-items: center; gap: 1rem; padding: 1rem; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; text-decoration: none; color: var(--text-primary); transition: all 0.2s; }
+        .doc-card:hover { border-color: var(--primary); background: var(--primary-light); transform: translateX(4px); }
+        .doc-icon { width: 40px; height: 40px; background: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; box-shadow: var(--shadow); }
+        .doc-info h4 { font-size: 0.875rem; font-weight: 600; margin-bottom: 0.25rem; }
+        .doc-info p { font-size: 0.75rem; color: var(--text-secondary); }
+
+        /* ========================================== */
+        /* FITUR BARU: COMPARISON STYLES              */
+        /* ========================================== */
+        .comparison-controls { display: grid; grid-template-columns: 1fr auto 1fr; gap: 1rem; align-items: end; margin-bottom: 2rem; padding: 1.5rem; background: var(--bg); border-radius: 12px; border: 1px solid var(--border); }
+        .comparison-controls select { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; font-weight: 500; background: white; }
+        .vs-badge { background: var(--text-primary); color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.875rem; margin-bottom: 0.25rem; }
+        
+        .comparison-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2rem; }
+        .comp-metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; text-align: center; }
+        .comp-metric-label { font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); font-weight: 600; margin-bottom: 0.5rem; }
+        .comp-metric-val-national { font-size: 1.5rem; font-weight: 700; color: var(--secondary); }
+        .comp-metric-val-regional { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
+        .comp-variance { font-size: 0.875rem; font-weight: 600; margin-top: 0.5rem; padding: 0.25rem 0.5rem; border-radius: 4px; display: inline-block; }
+        .variance-negative { background: var(--danger-light); color: var(--danger); }
+        .variance-positive { background: var(--success-light); color: var(--success); }
+
+        .ai-insight-box { background: var(--purple-light); border: 1px solid #c4b5fd; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; display: flex; gap: 1rem; }
+        .ai-insight-box .icon { font-size: 1.5rem; flex-shrink: 0; }
+        .ai-insight-box h4 { color: #5b21b6; font-size: 0.875rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .ai-insight-box p { color: #4c1d95; font-size: 0.875rem; line-height: 1.6; }
+
+        /* Footer */
+        footer { background: #0f172a; color: #94a3b8; padding: 2rem; text-align: center; font-size: 0.75rem; margin-top: 3rem; border-radius: 16px 16px 0 0; }
+        .green-metrics { display: flex; justify-content: center; gap: 1.5rem; margin-top: 1rem; flex-wrap: wrap; }
+        .green-metric-item { display: flex; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.05); padding: 0.5rem 1rem; border-radius: 20px; }
+
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            .metrics-grid, .comparison-metrics { grid-template-columns: 1fr; }
+            .comparison-controls { grid-template-columns: 1fr; text-align: center; }
+            .vs-badge { margin: 0 auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-content">
+            <div class="brand">
+                <div class="brand-icon">🌍</div>
+                <div class="brand-text">
+                    <h1>ClimateWatch Indonesia</h1>
+                    <p>Dashboard Pemantauan Perubahan Iklim & Anggaran</p>
+                </div>
+            </div>
+            <div style="display: flex; gap: 0.75rem;">
+                <button class="btn btn-outline">📥 Export Data</button>
+                <button class="btn btn-primary">🔐 Login Pemerintah</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="warning-box">
+            <div class="icon">⚠️</div>
+            <div>
+                <h3>Peringatan Transparansi Data</h3>
+                <p>Data pada dashboard ini merupakan hasil analisis dan klasifikasi AI dari dokumen perencanaan (RPJMD/RKPD) dan dapat mengandung ketidakakuratan. Gunakan sebagai acuan pemantauan publik. Selalu verifikasi dengan sumber resmi <strong>Pusdatin Kemendagri</strong> atau <strong>SIPD</strong>.</p>
+            </div>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-icon icon-teal">💨</div>
+                    <span class="badge" style="background: var(--danger-light); color: var(--danger); font-size: 0.7rem;">↑ 2.1%</span>
+                </div>
+                <div class="metric-value">612.5 Mt</div>
+                <div class="metric-label">Total Emisi CO2 (2026)</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-icon icon-teal">🌳</div>
+                    <span class="badge" style="background: var(--success-light); color: var(--success); font-size: 0.7rem;">↓ 15%</span>
+                </div>
+                <div class="metric-value">435,200 Ha</div>
+                <div class="metric-label">Laju Deforestasi</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-icon icon-teal">💰</div>
+                    <span class="badge" style="background: var(--success-light); color: var(--success); font-size: 0.7rem;">↑ 18%</span>
+                </div>
+                <div class="metric-value">Rp 45.8 T</div>
+                <div class="metric-label">Total Anggaran Iklim</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-icon icon-teal">📊</div>
+                    <span class="badge" style="background: var(--danger-light); color: var(--danger); font-size: 0.7rem;">↓ 2.3%</span>
+                </div>
+                <div class="metric-value">68.5%</div>
+                <div class="metric-label">Rata-rata Realisasi</div>
+            </div>
+        </div>
+
+        <div class="tabs-container">
+            <div class="tabs-header">
+                <button class="tab-btn active" onclick="switchTab('overview')">📊 Overview & Peta</button>
+                <button class="tab-btn" onclick="switchTab('programs')">📋 Program & Anggaran</button>
+                <button class="tab-btn" onclick="switchTab('comparison')">⚖️ Perbandingan Anggaran</button>
+                <button class="tab-btn" onclick="switchTab('documents')">📄 Dokumen Sumber</button>
+            </div>
+
+            <!-- Tab 1: Overview & Map -->
+            <div id="overview" class="tab-content active">
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+                    <div class="metric-card" style="padding: 0; overflow: hidden; border: none;">
+                        <div style="padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="font-size: 1rem; font-weight: 600;">🗺️ Sebaran Emisi & Program per Provinsi</h3>
+                            <button class="btn btn-outline btn-sm">Fullscreen</button>
+                        </div>
+                        <div id="map" style="height: 400px; width: 100%;"></div>
+                    </div>
+                    <div class="metric-card">
+                        <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 1.5rem;">💰 Alokasi Anggaran per Kategori</h3>
+                        <div style="height: 250px; position: relative;">
+                            <canvas id="budgetChart"></canvas>
+                        </div>
+                        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+                            <h4 style="font-size: 0.875rem; font-weight: 600; margin-bottom: 1rem;">Top 3 Provinsi (Anggaran)</h4>
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <div>
+                                    <div style="display: flex; justify-content: space-between; font-size: 0.875rem; margin-bottom: 0.25rem;">
+                                        <span>DKI Jakarta</span>
+                                        <span style="font-weight: 600;">Rp 4.2 T</span>
+                                    </div>
+                                    <div class="progress-bar"><div class="progress-fill" style="width: 85%;"></div></div>
+                                </div>
+                                <div>
+                                    <div style="display: flex; justify-content: space-between; font-size: 0.875rem; margin-bottom: 0.25rem;">
+                                        <span>Jawa Barat</span>
+                                        <span style="font-weight: 600;">Rp 3.8 T</span>
+                                    </div>
+                                    <div class="progress-bar"><div class="progress-fill" style="width: 75%;"></div></div>
+                                </div>
+                                <div>
+                                    <div style="display: flex; justify-content: space-between; font-size: 0.875rem; margin-bottom: 0.25rem;">
+                                        <span>Kalimantan Timur</span>
+                                        <span style="font-weight: 600;">Rp 3.5 T</span>
+                                    </div>
+                                    <div class="progress-bar"><div class="progress-fill" style="width: 70%;"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h3 style="font-size: 1rem; font-weight: 600;">📈 Tren Emisi GRK Indonesia (2015-2026)</h3>
+                        <select style="padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border); font-size: 0.875rem;">
+                            <option>Nasional</option>
+                            <option>Sektor Energi</option>
+                            <option>Sektor Kehutanan</option>
+                        </select>
+                    </div>
+                    <div style="height: 300px; position: relative;">
+                        <canvas id="emissionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Programs & Budget -->
+            <div id="programs" class="tab-content">
+                <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1.5rem;">
+                    <a href="#" onclick="setLevel('nasional')" style="color: var(--primary); text-decoration: none;">🇮🇩 Nasional</a>
+                    <span>›</span>
+                    <span id="current-level" style="color: var(--text-primary); font-weight: 500;">Semua Provinsi</span>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; padding: 1.25rem; background: var(--bg); border-radius: 12px; border: 1px solid var(--border);">
+                    <div>
+                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem;">Tahun Anggaran</label>
+                        <select style="width: 100%; padding: 0.625rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; background: white;">
+                            <option>2026</option><option>2025</option><option>2024</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem;">Kategori Program</label>
+                        <select style="width: 100%; padding: 0.625rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; background: white;">
+                            <option>Semua Kategori</option><option>Mitigasi</option><option>Adaptasi</option><option>Basis Pendukung</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem;">Sektor</label>
+                        <select style="width: 100%; padding: 0.625rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; background: white;">
+                            <option>Semua Sektor</option><option>Energi</option><option>Transportasi</option><option>Kehutanan</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem;">Pencarian</label>
+                        <input type="text" placeholder="Cari nama program atau OPD..." style="width: 100%; padding: 0.625rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem;">
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Kode</th>
+                                <th>Nama Program / Kegiatan</th>
+                                <th>Kategori</th>
+                                <th>OPD Penanggung Jawab</th>
+                                <th>Pagu Anggaran</th>
+                                <th>Realisasi</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="font-family: monospace; color: var(--text-secondary);">PRG-001</td>
+                                <td style="font-weight: 500;">Program Pengembangan Energi Terbarukan</td>
+                                <td><span class="badge badge-mitigasi">Mitigasi</span></td>
+                                <td>Kementerian ESDM</td>
+                                <td style="font-weight: 600;">Rp 5.2 T</td>
+                                <td style="width: 150px;">
+                                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 0.25rem;"><span>70%</span><span style="color: var(--text-secondary);">Rp 3.6 T</span></div>
+                                    <div class="progress-bar"><div class="progress-fill" style="width: 70%;"></div></div>
+                                </td>
+                                <td><span style="color: var(--success); font-weight: 600; font-size: 0.875rem;">● On Track</span></td>
+                            </tr>
+                            <tr>
+                                <td style="font-family: monospace; color: var(--text-secondary);">PRG-002</td>
+                                <td style="font-weight: 500;">Program Rehabilitasi Hutan dan Lahan (RHL)</td>
+                                <td><span class="badge badge-adaptasi">Adaptasi</span></td>
+                                <td>KLHK</td>
+                                <td style="font-weight: 600;">Rp 3.8 T</td>
+                                <td style="width: 150px;">
+                                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 0.25rem;"><span>85%</span><span style="color: var(--text-secondary);">Rp 3.2 T</span></div>
+                                    <div class="progress-bar"><div class="progress-fill" style="width: 85%; background: var(--success);"></div></div>
+                                </td>
+                                <td><span style="color: var(--success); font-weight: 600; font-size: 0.875rem;">● On Track</span></td>
+                            </tr>
+                            <tr>
+                                <td style="font-family: monospace; color: var(--text-secondary);">PRG-003</td>
+                                <td style="font-weight: 500;">Program Transportasi Rendah Karbon</td>
+                                <td><span class="badge badge-mitigasi">Mitigasi</span></td>
+                                <td>Kemenhub</td>
+                                <td style="font-weight: 600;">Rp 4.5 T</td>
+                                <td style="width: 150px;">
+                                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 0.25rem;"><span>45%</span><span style="color: var(--text-secondary);">Rp 2.0 T</span></div>
+                                    <div class="progress-bar"><div class="progress-fill" style="width: 45%; background: var(--accent);"></div></div>
+                                </td>
+                                <td><span style="color: var(--accent); font-weight: 600; font-size: 0.875rem;">● At Risk</span></td>
+                            </tr>
+                            <tr>
+                                <td style="font-family: monospace; color: var(--text-secondary);">PRG-004</td>
+                                <td style="font-weight: 500;">Penguatan Sistem Peringatan Dini Bencana</td>
+                                <td><span class="badge badge-basis">Basis</span></td>
+                                <td>BMKG</td>
+                                <td style="font-weight: 600;">Rp 1.5 T</td>
+                                <td style="width: 150px;">
+                                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 0.25rem;"><span>92%</span><span style="color: var(--text-secondary);">Rp 1.38 T</span></div>
+                                    <div class="progress-bar"><div class="progress-fill" style="width: 92%; background: var(--success);"></div></div>
+                                </td>
+                                <td><span style="color: var(--success); font-weight: 600; font-size: 0.875rem;">● Selesai</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab 3: PERBANDINGAN ANGGARAN (FITUR BARU) -->
+            <div id="comparison" class="tab-content">
+                <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">⚖️ Perbandingan Kebijakan & Anggaran Iklim</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.875rem;">
+                    Analisis kesenjangan (<em>funding gap</em>) dan keselarasan alokasi anggaran antara target Nasional (RPJMN/RAN-GRK) dengan realisasi di tingkat Daerah (RKPD/RPJMD).
+                </p>
+
+                <div class="comparison-controls">
+                    <div>
+                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem;">Tingkat Nasional (Baseline)</label>
+                        <select disabled>
+                            <option>🇮🇩 Indonesia (Rata-rata Nasional)</option>
+                        </select>
+                    </div>
+                    <div class="vs-badge">VS</div>
+                    <div>
+                        <label style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem;">Tingkat Daerah (Pembanding)</label>
+                        <select id="regionSelect" onchange="updateComparison()">
+                            <option value="jabar">Provinsi Jawa Barat</option>
+                            <option value="jatim">Provinsi Jawa Timur</option>
+                            <option value="kaltim">Provinsi Kalimantan Timur</option>
+                            <option value="bandung">Kabupaten Bandung</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- AI Insight Box -->
+                <div class="ai-insight-box">
+                    <div class="icon">🧠</div>
+                    <div>
+                        <h4>Analisis Kesenjangan Kebijakan oleh AI</h4>
+                        <p id="aiInsightText">Berdasarkan analisis NLP terhadap RKPD Jawa Barat 2026, terdapat <strong>kesenjangan pendanaan (funding gap) sebesar 15%</strong> pada sektor Adaptasi Perubahan Iklim dibandingkan rata-rata nasional. Namun, daerah ini mengalokasikan 2x lebih besar untuk program "Ketahanan Pangan Lokal" yang sangat selaras dengan target NDC sektor pertanian.</p>
+                    </div>
+                </div>
+
+                <div class="comparison-metrics">
+                    <div class="comp-metric-card">
+                        <div class="comp-metric-label">Total Anggaran Iklim</div>
+                        <div class="comp-metric-val-national">Rp 45.8 T</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin: 0.25rem 0;">vs</div>
+                        <div class="comp-metric-val-regional" id="compBudget">Rp 3.8 T</div>
+                        <div class="comp-variance variance-positive" id="compBudgetVar">+8% dari target proporsional</div>
+                    </div>
+                    <div class="comp-metric-card">
+                        <div class="comp-metric-label">% Alokasi untuk Adaptasi</div>
+                        <div class="comp-metric-val-national">38%</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin: 0.25rem 0;">vs</div>
+                        <div class="comp-metric-val-regional" id="compAdapt">23%</div>
+                        <div class="comp-variance variance-negative" id="compAdaptVar">-15% (Kurang dari rata-rata)</div>
+                    </div>
+                    <div class="comp-metric-card">
+                        <div class="comp-metric-label">Skor Keselarasan NDC</div>
+                        <div class="comp-metric-val-national">85/100</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin: 0.25rem 0;">vs</div>
+                        <div class="comp-metric-val-regional" id="compNDC">72/100</div>
+                        <div class="comp-variance variance-negative" id="compNDCVar">Perlu peningkatan di sektor EBT</div>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+                    <div class="metric-card" style="padding: 1.5rem;">
+                        <h4 style="margin-bottom: 1rem; font-size: 0.875rem; font-weight: 600;">📊 Perbandingan Alokasi per Sektor (dalam Miliar Rp)</h4>
+                        <div style="height: 300px; position: relative;">
+                            <canvas id="comparisonChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="metric-card" style="padding: 1.5rem;">
+                        <h4 style="margin-bottom: 1rem; font-size: 0.875rem; font-weight: 600;">⚠️ Program dengan Kesenjangan Terbesar</h4>
+                        <div style="display: flex; flex-direction: column; gap: 1rem;">
+                            <div style="padding: 1rem; background: var(--danger-light); border-radius: 8px; border-left: 4px solid var(--danger);">
+                                <div style="font-weight: 600; font-size: 0.875rem; color: #991b1b;">Proteksi Pesisir & Mangrove</div>
+                                <div style="font-size: 0.75rem; color: #991b1b; margin-top: 0.25rem;">Nasional: Rp 1.2 T | Daerah: Rp 150 M<br><strong>Defisit: 87.5%</strong></div>
+                            </div>
+                            <div style="padding: 1rem; background: var(--accent-light); border-radius: 8px; border-left: 4px solid var(--accent);">
+                                <div style="font-weight: 600; font-size: 0.875rem; color: #92400e;">Transisi Energi Transportasi</div>
+                                <div style="font-size: 0.75rem; color: #92400e; margin-top: 0.25rem;">Nasional: Rp 4.5 T | Daerah: Rp 800 M<br><strong>Defisit: 82.2%</strong></div>
+                            </div>
+                            <div style="padding: 1rem; background: var(--success-light); border-radius: 8px; border-left: 4px solid var(--success);">
+                                <div style="font-weight: 600; font-size: 0.875rem; color: #065f46;">Rehabilitasi Lahan Kritis</div>
+                                <div style="font-size: 0.75rem; color: #065f46; margin-top: 0.25rem;">Nasional: Rp 3.8 T | Daerah: Rp 950 M<br><strong>Surplus: +12% dari target</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nama Program</th>
+                                <th>Anggaran Nasional (Avg)</th>
+                                <th>Anggaran Daerah Terpilih</th>
+                                <th>Variansi</th>
+                                <th>Status Keselarasan NDC</th>
+                            </tr>
+                        </thead>
+                        <tbody id="comparisonTableBody">
+                            <tr>
+                                <td style="font-weight: 500;">Pengembangan Energi Surya Atap</td>
+                                <td>Rp 5.2 T</td>
+                                <td>Rp 410 M</td>
+                                <td style="color: var(--danger); font-weight: 600;">-92%</td>
+                                <td><span class="badge" style="background: var(--danger-light); color: var(--danger);">Tidak Selaras</span></td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 500;">Adaptasi Pertanian Pangan Lokal</td>
+                                <td>Rp 2.1 T</td>
+                                <td>Rp 650 M</td>
+                                <td style="color: var(--success); font-weight: 600;">+15%</td>
+                                <td><span class="badge badge-adaptasi">Sangat Selaras</span></td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 500;">Sistem Peringatan Dini Banjir</td>
+                                <td>Rp 1.5 T</td>
+                                <td>Rp 300 M</td>
+                                <td style="color: var(--accent); font-weight: 600;">-20%</td>
+                                <td><span class="badge" style="background: var(--accent-light); color: #92400e;">Perlu Perhatian</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab 4: Documents -->
+            <div id="documents" class="tab-content">
+                <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">📄 Dokumen Perencanaan & Penganggaran Sumber</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.875rem;">Akses langsung ke dokumen resmi yang menjadi sumber data klasifikasi AI pada dashboard ini.</p>
+                
+                <div class="doc-grid">
+                    <a href="https://www.bappenas.go.id" target="_blank" class="doc-card">
+                        <div class="doc-icon">📑</div>
+                        <div class="doc-info">
+                            <h4>RPJMN 2025-2029</h4>
+                            <p>Bappenas · Rencana Pembangunan Jangka Menengah Nasional</p>
+                        </div>
+                    </a>
+                    <a href="https://www.menlhk.go.id" target="_blank" class="doc-card">
+                        <div class="doc-icon">🌿</div>
+                        <div class="doc-info">
+                            <h4>RAN-GRK 2025-2029</h4>
+                            <p>KLHK · Rencana Aksi Nasional Penurunan Emisi GRK</p>
+                        </div>
+                    </a>
+                    <a href="https://pelita.kemendagri.go.id" target="_blank" class="doc-card">
+                        <div class="doc-icon">🏛️</div>
+                        <div class="doc-info">
+                            <h4>Platform PELITA</h4>
+                            <p>Pusdatin Kemendagri · Data Perencanaan & Penganggaran Daerah</p>
+                        </div>
+                    </a>
+                    <a href="https://sipd.kemendagri.go.id" target="_blank" class="doc-card">
+                        <div class="doc-icon">💻</div>
+                        <div class="doc-info">
+                            <h4>SIPD (Sistem Informasi Pemerintahan Daerah)</h4>
+                            <p>Kemendagri · e-Planning & e-Budgeting Terintegrasi</p>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="metric-card" style="margin-top: 2rem; background: var(--success-light); border-color: #bbf7d0;">
+                    <h4 style="color: #166534; margin-bottom: 0.5rem;">🔗 Integrasi API Pusdatin</h4>
+                    <p style="font-size: 0.875rem; color: #15803d; margin-bottom: 1rem;">Dashboard ini dirancang untuk terhubung langsung dengan API terbuka PELITA dan SIPD untuk sinkronisasi data real-time.</p>
+                    <code style="background: white; padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; color: #0f766e; display: block; border: 1px solid #bbf7d0;">
+                        GET https://api.pusdatin.kemendagri.go.id/v1/programs?kategori=iklim&tahun=2026
+                    </code>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2026 ClimateWatch Indonesia. Didukung oleh Digital Public Goods & Prinsip AI Beretika.</p>
+        <div class="green-metrics">
+            <div class="green-metric-item">⚡ Energi Server: 85% Terbarukan</div>
+            <div class="green-metric-item">💧 Jejak Air Sesi Ini: ~0.5L</div>
+            <div class="green-metric-item">🌍 Emisi CO2e Halaman: 0.002g</div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        // 1. Tab Switching Logic
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+            
+            if(tabId === 'overview' && window.mapInstance) {
+                setTimeout(() => { window.mapInstance.invalidateSize(); }, 100);
+            }
+            if(tabId === 'comparison' && window.comparisonChartInstance) {
+                setTimeout(() => { window.comparisonChartInstance.update(); }, 100);
+            }
+        }
+
+        function setLevel(level) {
+            document.getElementById('current-level').textContent = level.charAt(0).toUpperCase() + level.slice(1);
+        }
+
+        // 2. Initialize Maps and Charts
+        document.addEventListener('DOMContentLoaded', function() {
+            // Leaflet Map
+            window.mapInstance = L.map('map').setView([-2.5489, 118.0149], 5);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap & CARTO', maxZoom: 19
+            }).addTo(window.mapInstance);
+            
+            L.circleMarker([-6.2088, 106.8456], { radius: 8, fillColor: '#0f766e', color: "#fff", weight: 2, fillOpacity: 0.8 })
+             .addTo(window.mapInstance).bindPopup("<b>DKI Jakarta</b><br>Program Transportasi Rendah Karbon");
+
+            // Budget Chart (Doughnut)
+            const ctxBudget = document.getElementById('budgetChart').getContext('2d');
+            new Chart(ctxBudget, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Mitigasi (45%)', 'Adaptasi (38%)', 'Basis Pendukung (17%)'],
+                    datasets: [{
+                        data: [45, 38, 17],
+                        backgroundColor: ['#0f766e', '#0ea5e9', '#f59e0b'],
+                        borderWidth: 0, hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, cutout: '75%',
+                    plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 15, font: { family: "'Inter', sans-serif", size: 12 } } } }
+                }
+            });
+
+            // Emission Chart (Line)
+            const ctxEmission = document.getElementById('emissionChart').getContext('2d');
+            const gradient = ctxEmission.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, 'rgba(15, 118, 110, 0.2)');
+            gradient.addColorStop(1, 'rgba(15, 118, 110, 0.0)');
+
+            new Chart(ctxEmission, {
+                type: 'line',
+                data: {
+                    labels: ['2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026'],
+                    datasets: [{
+                        label: 'Total Emisi GRK (Mt CO2e)',
+                        data: [520, 535, 542, 550, 565, 540, 555, 580, 595, 605, 610, 612.5],
+                        borderColor: '#0f766e', backgroundColor: gradient, borderWidth: 3, fill: true, tension: 0.4,
+                        pointBackgroundColor: '#ffffff', pointBorderColor: '#0f766e', pointBorderWidth: 2, pointRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: false, min: 500, grid: { color: '#f1f5f9' }, ticks: { font: { family: "'Inter', sans-serif", size: 11 }, color: '#64748b' } },
+                        x: { grid: { display: false }, ticks: { font: { family: "'Inter', sans-serif", size: 11 }, color: '#64748b' } }
+                    }
+                }
+            });
+
+            // Comparison Chart (Bar)
+            initComparisonChart();
+        });
+
+        // 3. Comparison Chart Logic
+        let comparisonChartInstance = null;
+        function initComparisonChart() {
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
+            comparisonChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Energi Terbarukan', 'Adaptasi Pertanian', 'Proteksi Pesisir', 'Transportasi Rendah Karbon', 'Kehutanan & RHL'],
+                    datasets: [
+                        {
+                            label: 'Rata-rata Nasional (Miliar Rp)',
+                            data: [5200, 2100, 1200, 4500, 3800],
+                            backgroundColor: '#0ea5e9',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Jawa Barat (Miliar Rp)',
+                            data: [410, 650, 150, 800, 950],
+                            backgroundColor: '#0f766e',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: true, font: { family: "'Inter', sans-serif" } } },
+                        tooltip: { backgroundColor: '#0f172a', titleFont: { family: "'Inter', sans-serif" }, bodyFont: { family: "'Inter', sans-serif" } }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { family: "'Inter', sans-serif" } } },
+                        x: { grid: { display: false }, ticks: { font: { family: "'Inter', sans-serif" } } }
+                    }
+                }
+            });
+        }
+
+        // 4. Dynamic Comparison Update (Mock Data)
+        function updateComparison() {
+            const region = document.getElementById('regionSelect').value;
+            const insightText = document.getElementById('aiInsightText');
+            
+            if (region === 'kaltim') {
+                document.getElementById('compBudget').textContent = 'Rp 3.5 T';
+                document.getElementById('compAdapt').textContent = '15%';
+                document.getElementById('compNDC').textContent = '65/100';
+                insightText.innerHTML = 'Berdasarkan analisis NLP terhadap RKPD Kalimantan Timur, terdapat <strong>fokus yang sangat tinggi pada sektor Kehutanan dan RHL</strong> (selaras dengan status IKN), namun alokasi untuk adaptasi pesisir masih <strong>30% di bawah</strong> rata-rata nasional, menimbulkan risiko bagi komunitas pesisir lokal.';
+                
+                comparisonChartInstance.data.datasets[1].label = 'Kalimantan Timur (Miliar Rp)';
+                comparisonChartInstance.data.datasets[1].data = [200, 300, 100, 400, 1200];
+                comparisonChartInstance.update();
+            } else if (region === 'jabar') {
+                document.getElementById('compBudget').textContent = 'Rp 3.8 T';
+                document.getElementById('compAdapt').textContent = '23%';
+                document.getElementById('compNDC').textContent = '72/100';
+                insightText.innerHTML = 'Berdasarkan analisis NLP terhadap RKPD Jawa Barat 2026, terdapat <strong>kesenjangan pendanaan (funding gap) sebesar 15%</strong> pada sektor Adaptasi Perubahan Iklim dibandingkan rata-rata nasional. Namun, daerah ini mengalokasikan 2x lebih besar untuk program "Ketahanan Pangan Lokal" yang sangat selaras dengan target NDC sektor pertanian.';
+                
+                comparisonChartInstance.data.datasets[1].label = 'Jawa Barat (Miliar Rp)';
+                comparisonChartInstance.data.datasets[1].data = [410, 650, 150, 800, 950];
+                comparisonChartInstance.update();
+            } else if (region === 'jatim') {
+                document.getElementById('compBudget').textContent = 'Rp 3.5 T';
+                document.getElementById('compAdapt').textContent = '35%';
+                document.getElementById('compNDC').textContent = '78/100';
+                insightText.innerHTML = 'Jawa Timur menunjukkan <strong>keselarasan yang baik</strong> pada sektor adaptasi pertanian, namun mengalami defisit pada program mitigasi industri karena ketergantungan pada sektor manufaktur konvensional.';
+                
+                comparisonChartInstance.data.datasets[1].label = 'Jawa Timur (Miliar Rp)';
+                comparisonChartInstance.data.datasets[1].data = [350, 800, 200, 600, 700];
+                comparisonChartInstance.update();
+            } else if (region === 'bandung') {
+                document.getElementById('compBudget').textContent = 'Rp 450 M';
+                document.getElementById('compAdapt').textContent = '18%';
+                document.getElementById('compNDC').textContent = '60/100';
+                insightText.innerHTML = 'Pada tingkat Kabupaten, Bandung menunjukkan <strong>keterbatasan fiskal</strong> yang signifikan. Alokasi untuk aksi iklim hanya 2% dari total APBD, jauh di bawah rata-rata nasional, dengan ketergantungan tinggi pada Dana Alokasi Khusus (DAK) Fisik.';
+                
+                comparisonChartInstance.data.datasets[1].label = 'Kab. Bandung (Miliar Rp)';
+                comparisonChartInstance.data.datasets[1].data = [50, 80, 20, 100, 120];
+                comparisonChartInstance.update();
+            }
+        }
+    </script>
+</body>
+</html>
